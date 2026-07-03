@@ -63,6 +63,26 @@
 4. Document `safe` and `power_user` mappings in the adapter `docs`.
 5. Register the adapter in `src/agents/index.ts`.
 
+### CLI Agent Subprocess Rules
+
+These rules exist because local coding CLIs do not share argument parsing or
+stdin semantics.
+
+- Keep all process spawning in `src/agents/runtime/process.ts`.
+- Always spawn CLI agents with stdin ignored/closed, for example
+  `stdio: ["ignore", "pipe", "pipe"]`. Do not pipe an empty stdin handle.
+- Pass prompts as explicit CLI arguments or as documented temp files. Do not
+  rely on stdin unless a specific adapter is intentionally designed and tested
+  for stdin input.
+- For Codex CLI, put global permission/workspace flags before `exec`:
+  `codex --sandbox workspace-write --ask-for-approval never --cd <repo> exec --json <prompt>`.
+  Do not build `codex exec --json --ask-for-approval ...`; newer Codex CLI
+  versions can reject or reinterpret that shape.
+- Keep `--ask-for-approval never` paired with an explicit sandbox/workspace
+  scope. Do not use dangerous bypass flags as defaults.
+  This matches Tolaria's proven pattern: global Codex flags before `exec` and
+  child stdin set to null/ignored.
+
 ## Add An MCP Tool
 
 1. Add the JSON schema to `src/mcp/tools.ts`.

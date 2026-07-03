@@ -18,7 +18,7 @@ function claudePermissionArgs(request: AiRunRequest): string[] {
   return ["--permission-mode", request.permissionMode === "power_user" ? "dontAsk" : "acceptEdits"];
 }
 
-function codexPermissionArgs(request: AiRunRequest): string[] {
+function codexGlobalArgs(request: AiRunRequest): string[] {
   return ["--sandbox", "workspace-write", "--ask-for-approval", "never", ...(request.workspacePath ? ["--cd", request.workspacePath] : [])];
 }
 
@@ -48,9 +48,9 @@ export const CLI_AGENT_DEFINITIONS: readonly CliAgentDefinition[] = [
     installUrl: "https://developers.openai.com/codex/cli",
     eventFormat: "jsonl",
     maturity: "verified",
-    verificationNotes: "Verified against Codex CLI help: exec --json, --sandbox, --ask-for-approval, and --cd are supported.",
-    docs: "Codex CLI adapter. Keep sandboxing explicit and pass the prompt as the final argument.",
-    buildArgs: (request) => ["exec", "--json", ...codexPermissionArgs(request), promptArg(request)],
+    verificationNotes: "Verified against Codex CLI help: pass global permission args before exec, then exec --json and the final prompt.",
+    docs: "Codex CLI adapter. Keep sandboxing explicit, pass global permission flags before `exec`, keep stdin ignored in the shared runtime, and pass the prompt as the final argument.",
+    buildArgs: (request) => [...codexGlobalArgs(request), "exec", "--json", promptArg(request)],
     buildEnv: workspaceEnv,
     permissionSemantics: {
       safe: "Use workspace-write semantics for the active workspace.",

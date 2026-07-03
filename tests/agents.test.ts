@@ -2,7 +2,7 @@ import { chmod, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createDefaultCliAgentAdapters, findExecutable, mapJsonLineEvent, mapPlainLineEvent, stripAnsi } from "../src/agents/index.js";
+import { CLI_AGENT_DEFINITIONS, createDefaultCliAgentAdapters, findExecutable, mapJsonLineEvent, mapPlainLineEvent, stripAnsi } from "../src/agents/index.js";
 
 describe("agents", () => {
   it("maps JSONL and line events to normalized stream events", () => {
@@ -25,6 +25,22 @@ describe("agents", () => {
       permissionMode: "power_user",
       binaryNames: expect.arrayContaining(["codex"]),
     });
+  });
+
+  it("builds Codex CLI args with global flags before exec and prompt last", () => {
+    const codex = CLI_AGENT_DEFINITIONS.find((definition) => definition.id === "codex");
+    expect(codex).toBeDefined();
+
+    const args = codex!.buildArgs({
+      message: "work",
+      permissionMode: "power_user",
+      workspacePath: "/repo",
+    });
+
+    const execIndex = args.indexOf("exec");
+    expect(args.slice(0, execIndex)).toEqual(["--sandbox", "workspace-write", "--ask-for-approval", "never", "--cd", "/repo"]);
+    expect(args.slice(execIndex, execIndex + 2)).toEqual(["exec", "--json"]);
+    expect(args.at(-1)).toContain("User request:\nwork");
   });
 
   it("marks unverified adapters as templates", async () => {

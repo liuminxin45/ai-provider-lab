@@ -25,3 +25,17 @@ Shared runtime-owned behavior:
 - Abort signal handling
 - JSONL and line stream parsing
 - Error normalization
+
+Non-interactive subprocess rules:
+
+- Spawn agent CLIs with stdin ignored or closed. In Node, use
+  `stdio: ["ignore", "pipe", "pipe"]`.
+- Do not pipe an empty stdin to Codex or similar CLIs. Some versions treat a
+  piped stdin handle as extra user input even when a prompt argument exists.
+- Adapter prompts should be explicit CLI arguments or documented temp files.
+  Stdin-based adapters must be tested separately.
+- Codex CLI global flags belong before `exec`:
+  `codex --sandbox workspace-write --ask-for-approval never --cd <repo> exec --json <prompt>`.
+  Keep `--json` after `exec`.
+  This mirrors Tolaria's subprocess pattern and avoids Codex reinterpreting
+  approval/sandbox flags or trying to read additional stdin.
