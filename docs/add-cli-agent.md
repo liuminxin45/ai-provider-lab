@@ -35,7 +35,11 @@ Non-interactive subprocess rules:
 - Adapter prompts should be explicit CLI arguments or documented temp files.
   Stdin-based adapters must be tested separately.
 - Codex CLI global flags belong before `exec`:
-  `codex --sandbox workspace-write --ask-for-approval never --cd <repo> exec --json <prompt>`.
+  `codex --sandbox workspace-write --ask-for-approval never -C <repo> exec --json <prompt>`.
+- Codex `exec --json` uses Codex-specific JSONL names. At minimum, map
+  `thread.started` to `init`, `item.completed` with `item.type === "agent_message"`
+  to text output, command/tool item events to tool start/done, and `turn.completed`
+  to done.
   Keep `--json` after `exec`.
   This mirrors Tolaria's subprocess pattern and avoids Codex reinterpreting
   approval/sandbox flags or trying to read additional stdin.

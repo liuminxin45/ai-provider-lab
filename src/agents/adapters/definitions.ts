@@ -19,7 +19,7 @@ function claudePermissionArgs(request: AiRunRequest): string[] {
 }
 
 function codexGlobalArgs(request: AiRunRequest): string[] {
-  return ["--sandbox", "workspace-write", "--ask-for-approval", "never", ...(request.workspacePath ? ["--cd", request.workspacePath] : [])];
+  return ["--sandbox", "workspace-write", "--ask-for-approval", "never", ...(request.workspacePath ? ["-C", request.workspacePath] : [])];
 }
 
 export const CLI_AGENT_DEFINITIONS: readonly CliAgentDefinition[] = [

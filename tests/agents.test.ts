@@ -17,6 +17,26 @@ describe("agents", () => {
     expect(stripAnsi("\u001b[31mred\u001b[0m")).toBe("red");
   });
 
+  it("maps Codex CLI JSONL events to normalized stream events", () => {
+    expect(mapJsonLineEvent(JSON.stringify({ type: "thread.started", thread_id: "abc" }))).toEqual({ kind: "init", sessionId: "abc" });
+    expect(
+      mapJsonLineEvent(
+        JSON.stringify({
+          type: "item.completed",
+          item: { type: "agent_message", text: "done" },
+        }),
+      ),
+    ).toEqual({ kind: "text_delta", text: "done" });
+    expect(
+      mapJsonLineEvent(
+        JSON.stringify({
+          type: "item.started",
+          item: { id: "cmd-1", type: "command_execution", command: "npm test" },
+        }),
+      ),
+    ).toEqual({ kind: "tool_start", toolName: "command", toolId: "cmd-1", input: "npm test" });
+  });
+
   it("builds permission-aware CLI configs", () => {
     const codex = createDefaultCliAgentAdapters().find((adapter) => adapter.id === "agent:codex");
     expect(codex).toBeDefined();
@@ -38,7 +58,7 @@ describe("agents", () => {
     });
 
     const execIndex = args.indexOf("exec");
-    expect(args.slice(0, execIndex)).toEqual(["--sandbox", "workspace-write", "--ask-for-approval", "never", "--cd", "/repo"]);
+    expect(args.slice(0, execIndex)).toEqual(["--sandbox", "workspace-write", "--ask-for-approval", "never", "-C", "/repo"]);
     expect(args.slice(execIndex, execIndex + 2)).toEqual(["exec", "--json"]);
     expect(args.at(-1)).toContain("User request:\nwork");
   });

@@ -38,7 +38,16 @@ interface SpawnAndStreamOptions {
 }
 
 async function spawnAndStream(options: SpawnAndStreamOptions): Promise<void> {
-  emitInit(options.emit);
+  let doneEmitted = false;
+  const emit: AiStreamEmitter = (event) => {
+    if (event.kind === "done") {
+      if (doneEmitted) return;
+      doneEmitted = true;
+    }
+    options.emit(event);
+  };
+
+  emitInit(emit);
   const child = spawn(options.binary, options.args, {
     cwd: options.cwd,
     env: options.env,
@@ -54,7 +63,7 @@ async function spawnAndStream(options: SpawnAndStreamOptions): Promise<void> {
 
   stdoutLines.on("line", (line) => {
     const event = options.mapper(`${line}\n`);
-    if (event) options.emit(event);
+    if (event) emit(event);
   });
   stderrLines.on("line", (line) => stderr.push(line));
 
@@ -69,9 +78,9 @@ async function spawnAndStream(options: SpawnAndStreamOptions): Promise<void> {
       resolve();
     });
   }).catch((error) => {
-    options.emit({ kind: "error", message: asErrorMessage(error) });
+    emit({ kind: "error", message: asErrorMessage(error) });
   });
-  options.emit({ kind: "done" });
+  emit({ kind: "done" });
 }
 
 function emitInit(emit: AiStreamEmitter): void {

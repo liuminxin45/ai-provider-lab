@@ -4,22 +4,31 @@
 
 ## 当用户把这个 GitHub 链接发给你
 
-如果用户给你的是 `https://github.com/liuminxin45/ai-provider-lab`，你的目标是：阅读本仓库，识别用户项目需要的 AI 集成类型，并把最小实现落到用户自己的项目中。
+如果用户给你的是 `https://github.com/liuminxin45/ai-provider-lab`，你的目标是：阅读本仓库，识别用户项目需要的 AI target 类型，并把最小实现落到用户自己的项目中。
 
 通常不要先运行 `npm install`，也不要把整个仓库复制到用户项目。
 
 执行顺序：
 
 1. 先读 `docs/integrate-into-your-project.md`。
-2. 再按需求选择一类：
+2. 再按需求选择 target：
    - 直接模型 API：读 `src/providers`。
    - 本地 CLI 编程代理：读 `src/agents`。
    - MCP 工具/注册：读 `src/mcp`。
-3. 如果目标项目已有 UI，并且用户需要配置、切换、测试 AI provider / agent / MCP，再读 `docs/ui-integration-prompt.md`。
-4. 在用户项目里实现最小匹配方案。
-5. 使用用户项目自己的测试、构建和 lint 命令验证。
+3. 如果用户要求 API、本地模型、本地代理、MCP 中的多类能力，先读 `src/core`，建立 target 矩阵，再读所有涉及的目录。不要只选 `src/providers`。
+4. 如果目标项目已有 UI，并且用户需要配置、切换、测试 AI provider / agent / MCP，再读 `docs/ui-integration-prompt.md`。
+5. 在用户项目里实现最小匹配方案。
+6. 使用用户项目自己的测试、构建和 lint 命令验证。
 
 只有在你要修改这个参考仓库本身，或需要运行本仓库 tests/examples 时，才使用 `npm install`。
+
+## Target Kind 硬规则
+
+- `provider` 是直接模型 endpoint，可以有 `Test connection`，用于验证 API key、Base URL、模型名和本地模型服务是否可请求。
+- `agent` 是本地 CLI 子进程，readiness 只能来自 binary/version/maturity 检测。不要为了检测 agent 而发送 prompt，也不要把 agent 状态叫作 LLM 连通。
+- `mcp` 是工具平面，不是模型 provider，不应该进入 LLM 生成门禁。
+- 如果目标项目已有 `LLM Provider` 或 `LLM Connectivity` 旧抽象，接入多 target 前必须先拆成 `AI Target` + `kind`，再分别映射 UI、检测、门禁和运行时。
+- 门禁文案必须按 kind 区分：provider 可用、agent 已安装、mcp 已配置，不能统一写成 “LLM 已连通”。
 
 ## 当目标项目是带 UI 的项目时
 
@@ -33,7 +42,7 @@
 可直接复制给目标项目 Agent 的 UI prompt：
 
 ```text
-请先扫描当前项目已有的 UI 技术栈、设计系统、设置页和表单组件。不要做营销页，不要做大 hero，不要新增 UI 框架。若项目已有 Settings / Admin / Preferences / Integrations 页面，请在现有入口里实现一个紧凑的 AI 设置区：只展示当前项目实际接入的 provider / agent / mcp 类型；提供 checking / ready / missing / auth_missing 等状态；支持添加、删除、测试连接、复制 MCP 配置、错误提示、成功提示和空态；密钥默认走服务端环境变量或现有 secret 方案，不把 API key 写进前端仓库。详细范式见 docs/ui-integration-prompt.md。
+请先扫描当前项目已有的 UI 技术栈、设计系统、设置页和表单组件。不要做营销页，不要做大 hero，不要新增 UI 框架。若项目已有 Settings / Admin / Preferences / Integrations 页面，请在现有入口里实现一个紧凑的 AI 设置区：只展示当前项目实际接入的 provider / agent / mcp 类型；provider 使用 Test connection；agent 只做 Detect installed/ready/missing，不要发 prompt 做 LLM 检测；mcp 展示连接和配置复制；提供 checking / ready / missing / auth_missing / template 等状态；密钥默认走服务端环境变量或现有 secret 方案，不把 API key 写进前端仓库。详细范式见 docs/ui-integration-prompt.md。
 ```
 
 ## 修改本参考仓库时的规则
@@ -75,9 +84,13 @@ stdin semantics.
   rely on stdin unless a specific adapter is intentionally designed and tested
   for stdin input.
 - For Codex CLI, put global permission/workspace flags before `exec`:
-  `codex --sandbox workspace-write --ask-for-approval never --cd <repo> exec --json <prompt>`.
+  `codex --sandbox workspace-write --ask-for-approval never -C <repo> exec --json <prompt>`.
   Do not build `codex exec --json --ask-for-approval ...`; newer Codex CLI
   versions can reject or reinterpret that shape.
+- Codex `exec --json` emits real JSONL events such as `thread.started`,
+  `item.started`, `item.completed`, and `turn.completed`; map
+  `item.completed` with `item.type === "agent_message"` to text output instead
+  of waiting for a generic `text_delta` event.
 - Keep `--ask-for-approval never` paired with an explicit sandbox/workspace
   scope. Do not use dangerous bypass flags as defaults.
   This matches Tolaria's proven pattern: global Codex flags before `exec` and

@@ -11,6 +11,50 @@ export function mapJsonLineEvent(line: string): AiStreamEvent | null {
   }
 
   const type = stringField(parsed, "type") ?? stringField(parsed, "kind") ?? stringField(parsed, "event");
+  const item = recordField(parsed, "item") ?? parsed;
+  const itemType = stringField(item, "type");
+
+  if (type === "thread.started") {
+    return { kind: "init", sessionId: stringField(parsed, "thread_id") ?? stringField(parsed, "session_id") ?? "codex-session" };
+  }
+  if (type === "item.started" && itemType === "command_execution") {
+    return {
+      kind: "tool_start",
+      toolName: "command",
+      toolId: stringField(item, "id") ?? stringField(item, "call_id") ?? "command",
+      input: item.command ?? item.arguments ?? item.input,
+    };
+  }
+  if (type === "item.completed" && itemType === "command_execution") {
+    return {
+      kind: "tool_done",
+      toolId: stringField(item, "id") ?? stringField(item, "call_id") ?? "command",
+      output: item.aggregated_output ?? item.output ?? item.result,
+    };
+  }
+  if (type === "item.started" && itemType === "mcp_tool_call") {
+    return {
+      kind: "tool_start",
+      toolName: stringField(item, "tool") ?? stringField(item, "name") ?? "mcp_tool",
+      toolId: stringField(item, "id") ?? stringField(item, "call_id") ?? stringField(item, "tool_call_id") ?? "mcp_tool",
+      input: item.arguments ?? item.input,
+    };
+  }
+  if (type === "item.completed" && itemType === "mcp_tool_call") {
+    return {
+      kind: "tool_done",
+      toolId: stringField(item, "id") ?? stringField(item, "call_id") ?? stringField(item, "tool_call_id") ?? "mcp_tool",
+      output: item.error ?? item.result ?? item.output,
+    };
+  }
+  if ((type === "item.completed" && itemType === "agent_message") || itemType === "agent_message") {
+    const text = stringField(item, "text") ?? "";
+    return text ? { kind: "text_delta", text } : null;
+  }
+  if (type === "turn.completed") {
+    return { kind: "done" };
+  }
+
   if (type === "init" || type === "session") {
     return { kind: "init", sessionId: stringField(parsed, "session_id") ?? stringField(parsed, "sessionId") ?? "cli-session" };
   }
@@ -52,4 +96,9 @@ export function stripAnsi(value: string): string {
 function stringField(value: Record<string, unknown>, key: string): string | undefined {
   const field = value[key];
   return typeof field === "string" ? field : undefined;
+}
+
+function recordField(value: Record<string, unknown>, key: string): Record<string, unknown> | undefined {
+  const field = value[key];
+  return field && typeof field === "object" && !Array.isArray(field) ? (field as Record<string, unknown>) : undefined;
 }
